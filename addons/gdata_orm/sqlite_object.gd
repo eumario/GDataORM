@@ -1,3 +1,4 @@
+## TODO: Setup Foreign Key (Internal or SQLite)
 extends Resource
 class_name SQLiteObject
 
@@ -42,6 +43,8 @@ class TableDefs:
 
 static var _tables: Dictionary[GDScript, TableDefs] = {}
 
+var _db: SQLite
+
 static func setup(table_name: String = "") -> void:
 	var obj = new()
 	var klass: GDScript = obj.get_script()
@@ -57,6 +60,8 @@ static func setup(table_name: String = "") -> void:
 	for prop in obj.get_property_list():
 		if not prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			continue
+		if prop.name == "_db":
+			continue
 		var def = {}
 		if GodotTypes.has(prop.type):
 			def.data_type = DEFINITION[GodotTypes[prop.type]]
@@ -66,9 +71,9 @@ static func setup(table_name: String = "") -> void:
 		table.columns[prop.name] = def
 		table.types[prop.name] = GodotTypes[prop.type] if GodotTypes.has(prop.type) else DataType.GODOT_DATATYPE
 	
-	_setup(klass)
+	_setup()
 
-static func set_column_flags(klass: GDScript, column: String, flags: Flags, extra_params: Dictionary = {}) -> void:
+static func set_column_flags(klass: GDScript, column: String, flags: int, extra_params: Dictionary = {}) -> void:
 	assert(_tables.has(klass), "Setup must be called first, before setting any column flags!")
 	assert(_tables[klass].columns.has(column), "Column has not been defined!  Make sure to declare the variable first!")
 	
@@ -79,8 +84,11 @@ static func set_column_flags(klass: GDScript, column: String, flags: Flags, extr
 		assert(false,"Attempting to set a default, without defining it in extra parameters!")
 	if flags && Flags.AUTO_INCREMENT and (data_type != DataType.INT or data_type != DataType.REAL):
 		assert(false, "Attempting to set Auto Increment flag on Non-Integer column!")
-	if flags && Flags.FOREIGN_KEY and not extra_params.has("foreign_key"):
-		assert(false, "Attempting to set Foreign Key flag without defining the Foreign Key!")
+	if flags && Flags.FOREIGN_KEY:
+		if not extra_params.has("table"):
+			assert(false, "Attempting to set Foreign Key flag without defining the Table it associates with!")
+		if not extra_params.has("foreign_key"):
+			assert(false, "Attempting to set Foreign Key flag without defining the Foreign Key!")
 	
 	
 	if flags & Flags.NOT_NULL: col_def.not_null = true
@@ -138,12 +146,113 @@ static func _get_primary_key(klass: GDScript) -> String:
 	assert(primary_key != "", "No primary key has been defined!")
 	return primary_key
 
-static func _setup(klass: GDScript) -> void:
+static func _populate_object(table: TableDefs, obj: SQLiteObject, data: Dictionary) -> void:
+	var props = obj.get_property_list()
+	for key in data:
+		if not props.any(func(x): return x.name == key):
+			continue
+		if (table.types[key] == DataType.ARRAY or
+			table.types[key] == DataType.DICTIONARY):
+			obj.set(key, JSON.parse_string(data[key]))
+		elif table.types[key] == DataType.GODOT_DATATYPE:
+			obj.set(key, bytes_to_var(data[key]))
+		else:
+			obj.set(key, data[key])
+
+static func _setup() -> void:
 	push_warning("No setup has been defined for this class.  No special column flags or types will be used.")
 
-static func _find_one(db: SQLite, klass: GDScript, conditions: Dictionary) -> Array:
+static func _find_one(db: SQLite, klass: GDScript, conditions: Condition) -> SQLiteObject:
 	assert(_tables.has(klass), "Setup must be called first, before setting any column types!")
+	var table := _tables[klass]
+	var res := db.select_rows(table.table_name, conditions.to_string(), table.columns.keys())
 	
+	if res.is_empty():
+		return null
+	else:
+		var obj = klass.new()
+		obj._db = db
+		_populate_object(table, obj, res[0])
+		return obj
+
+static func _find_many(db: SQLite, klass: GDScript, conditions: Condition) -> Array:
+	assert(_tables.has(klass), "Setup must be called first, before setting any column types!")
+	var table := _tables[klass]
 	var objs: Array = []
+	var res = db.select_rows(table.table_name, conditions.to_string(), table.columns.keys())
 	
+	for data in res:
+		var obj = klass.new()
+		obj._db = db
+		_populate_object(table, obj, data)
+		objs.append(obj)
 	return objs
+
+static func _all(db: SQLite, klass: GDScript) -> Array:
+	assert(_tables.has(klass), "Setup must be called first, before setting any column types!")
+	var table := _tables[klass]
+	var objs: Array = []
+	var res = db.select_rows(table.table_name, "", table.columns.keys())
+	
+	for data in res:
+		var obj = klass.new()
+		obj._db = db
+		_populate_object(table, obj, data)
+		objs.append(obj)
+	return objs
+
+func exists() -> bool:
+	assert(_tables.has(self.get_script()), "Setup must be called first, before setting any column types!")
+	var table := _tables[self.get_script()]
+	var primary_key = _get_primary_key(self.get_script())
+	assert(primary_key != "", "A Primary Key has not been defined for this class.")
+	var res = _db.select_rows(table.table_name,
+		Condition.new().equal(primary_key, self.get(primary_key)).to_string(),
+		[primary_key])
+	return not res.is_empty()
+
+func save_database() -> void:
+	assert(_tables.has(self.get_script()), "Setup must be called first, before setting any column types!")
+	var table := _tables[self.get_script()]
+	var primary_key = _get_primary_key(self.get_script())
+
+	var data = {}
+	for key in table.columns.keys():
+		if (table.types[key] == DataType.ARRAY or
+			table.types[key] == DataType.DICTIONARY
+		):
+			data[key] = JSON.stringify(get(key))
+		elif table.types[key] == DataType.GODOT_DATATYPE:
+			data[key] = var_to_bytes(get(key))
+		else:
+			data[key] = get(key)
+
+	if primary_key != "" and exists():
+		_db.update_rows(table.table_name,Condition.new().equal(primary_key, get(primary_key)).to_string(), data)
+	else:
+		if primary_key != "" and table.columns[primary_key].auto_increment:
+			data.erase(primary_key)
+		_db.insert_row(table.table_name, data)
+
+func delete() -> void:
+	assert(_tables.has(self.get_script()), "Setup must be called first, before setting any column types!")
+	var table := _tables[self.get_script()]
+	var primary_key = _get_primary_key(self.get_script())
+	
+	assert(primary_key != "", "In order to delete data from the database, it must have a primary key!")
+	
+	if not exists():
+		push_warning("Attempting to delete a record that doesn't exist!")
+		return
+	
+	_db.delete_rows(table.table_name, Condition.new().equal(primary_key, get(primary_key)).to_string())
+
+func _to_string() -> String:
+	assert(_tables.has(self.get_script()), "Setup must be called first, before setting any column types!")
+	var table := _tables[self.get_script()]
+	var primary_key = _get_primary_key(self.get_script())
+	var kname = self.get_script().get_global_name()
+	if primary_key != "":
+		return "<%s:%s:%s>" % [kname, table.table_name, get(primary_key)]
+	else:
+		return "<%s:%s:G-%s>" % [kname, table.table_name, get_instance_id()]
