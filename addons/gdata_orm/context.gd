@@ -13,15 +13,15 @@ func setup() -> void:
 		if prop.type != TYPE_OBJECT or prop.class_name != "DbSet":
 			continue
 		var dbset: DbSet = get(prop.name)
-		dbset.klass.setup()
+		dbset.klass.setup(dbset.klass)
 
-func connect_to_db(db_path: String = "") -> void:
+func open_db(db_path: String = "") -> void:
 	var props = get_property_list()
 	if db_path != "":
 		file_path = db_path
-	var db = SQLite.new()
+	db = SQLite.new()
 	db.path = file_path
-	db.open()
+	db.open_db()
 	for prop in props:
 		if not prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			continue
@@ -29,6 +29,9 @@ func connect_to_db(db_path: String = "") -> void:
 			continue
 		var dbset: DbSet = get(prop.name)
 		dbset.set_db(db)
+
+func close_db() -> void:
+	db.close_db()
 
 func ensure_tables() -> void:
 	var props = get_property_list()
