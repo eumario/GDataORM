@@ -1,8 +1,6 @@
 @tool
 extends EditorScript
 
-
-# Called when the script is executed (using File -> Run in Script Editor).
 func _run() -> void:
 	var obj = TestClass.new()
 	for prop in obj.get_property_list():
