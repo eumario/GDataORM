@@ -1,9 +1,50 @@
 extends Resource
 class_name SQLiteObject
+## A Data Object representative of data to store in [SQLite] database.
+##
+## [SQLiteObject] is the core class for GDataORM.  It handles the grunt work
+## of defining what table structure is and any special flags that are needed
+## for SQLite.[br][br]
+## [b]Example:[/b]
+## [codeblock]
+## extends SQLiteObject
+## class_name Account
+## 
+## var id: int
+## var username: String
+## var password: String
+## var address: Address
+##
+## static func _setup() -> void:
+##     set_table_name(Account, "accounts")
+##     set_column_flags(Account, "id", Flags.PRIMARY_KEY | Flags.AUTO_INCREMENT | Flags.NOT_NULL)
+##     set_column_flags(Account, "username", Flags.NOT_NULL)
+##     set_column_flags(Account, "password", Flags.NOT_NULL)
+## [/codeblock]
 
-enum DataType { BOOL, INT, REAL, STRING, DICTIONARY, ARRAY, GODOT_DATATYPE, CHAR, BLOB }
+## The supported types of [SQLiteObject]
+enum DataType {
+	## A [bool] Value
+	BOOL, 
+	## An [int] Value
+	INT, 
+	## A [float] Value
+	REAL, 
+	## A Variable Length [String] Value
+	STRING, 
+	## A [Dictionary] Value
+	DICTIONARY, 
+	## An [Array] Value
+	ARRAY,
+	## A value of a built-in Godot DataType, or Object of a Custom Class.
+	GODOT_DATATYPE, 
+	## A Fixed-size [String] value, like [PackedStringArray]
+	CHAR, 
+	## A Binary value, like [PackedByteArray]
+	BLOB 
+}
 
-const BaseTypes = {
+const _BaseTypes = {
 	TYPE_BOOL: DataType.BOOL,
 	TYPE_INT: DataType.INT,
 	TYPE_FLOAT: DataType.REAL,
@@ -12,7 +53,7 @@ const BaseTypes = {
 	TYPE_ARRAY: DataType.ARRAY,
 }
 
-const DEFINITION = [
+const _DEFINITION = [
 	"int",
 	"int",
 	"real",
@@ -24,13 +65,21 @@ const DEFINITION = [
 	"blob"
 ]
 
+## SQLite flags used for column definitions.
 enum Flags {
+	## No Flags Associated with this Column
 	NONE = 1 << 0,
+	## Column must not be Null.
 	NOT_NULL = 1 << 1,
+	## Column must be Unique
 	UNIQUE = 1 << 2,
+	## Column has a Default value.
 	DEFAULT = 1 << 3,
+	## Column is defined as a Primary Key for this table.
 	PRIMARY_KEY = 1 << 4,
+	## Column is defined as auto-incrementing.
 	AUTO_INCREMENT = 1 << 5,
+	## Column is a Foreign Key (See [SQLite] about Foreign Keys)
 	FOREIGN_KEY = 1 << 6,
 }
 
@@ -44,11 +93,15 @@ static var _tables: Dictionary[GDScript, TableDefs] = {}
 static var _registry: Dictionary[String, GDScript] = {}
 var _db: SQLite
 
+## A debugging utility to see what classes have been registered with [SQLiteObject].
+## This is printed out to the terminal/output window for easy review.
 static func print_registered_classes() -> void:
 	print("SQLiteObject Registered Classes:")
 	for klass_name in _registry:
 		print(klass_name)
 
+## A debugging utility to see the structure of all the classes registered with [SQLiteObject].
+## This is printed out to the terminal/output window for easy review.
 static func print_data_structure() -> void:
 	print("SQLite Object Data Structure:")
 	print("-----------------------------")
@@ -70,6 +123,8 @@ static func print_data_structure() -> void:
 		print("")
 	pass
 
+## This function is called once when setting up the class.  This is automatically done with classes
+## that are registered as a [DbSet] by the [method Context.setup] static function call.
 static func setup(klass: GDScript) -> void:
 	_registry[klass.get_global_name()] = klass
 	var table: TableDefs
@@ -87,20 +142,33 @@ static func setup(klass: GDScript) -> void:
 		if prop.name == "_db":
 			continue
 		var def = {}
-		if BaseTypes.has(prop.type):
-			def.data_type = DEFINITION[BaseTypes[prop.type]]
-			table.types[prop.name] = BaseTypes[prop.type]
+		if _BaseTypes.has(prop.type):
+			def.data_type = _DEFINITION[_BaseTypes[prop.type]]
+			table.types[prop.name] = _BaseTypes[prop.type]
 		else:
-			def.data_type = DEFINITION[DataType.GODOT_DATATYPE]
+			def.data_type = _DEFINITION[DataType.GODOT_DATATYPE]
 			table.types[prop.name] = DataType.GODOT_DATATYPE
 		
 		table.columns[prop.name] = def
 
 	klass._setup()
 
+## This is a virtual function that is called when setup() is called.  This allows you to
+## setup the data class information such as Column Flags, Table Name and Column Types.
 static func _setup() -> void:
 	push_warning("No setup has been defined for this class.  No special column flags or types will be used.")
 
+## This function allows you to set SQLite specific flags for columns, when storing the data.
+## This function should only be called in [method SQLiteObject._setup] which is part of the
+## initialization of the data.[br][br]
+## [b]Example:[/b]
+## [codeblock]
+## static func _setup() -> void:
+##     # Ensure ID is an Auto-Increment Primary key in the database, that is not allowed to be null.
+##     set_column_flag(MyDataClass, "id", Flags.PRIMARY_KEY | Flags.AUTO_INCREMENT | Flags.NOT_NULL)
+##     # Ensure that name is not null in the database, and that it doesn't match any other row of data.
+##     set_column_flag(MyDataClass, "name", Flags.NOT_NULL | Flags.UNIQUE)
+## [/codeblock]
 static func set_column_flags(klass: GDScript, column: String, flags: int, extra_params: Dictionary = {}) -> void:
 	assert(_tables.has(klass), "Setup must be called first, before setting any column flags!")
 	assert(_tables[klass].columns.has(column), "Column has not been defined!  Make sure to declare the variable first!")
@@ -129,10 +197,15 @@ static func set_column_flags(klass: GDScript, column: String, flags: int, extra_
 		col_def.foreign_table = extra_params.table
 	_tables[klass].columns[column] = col_def
 
+## Sets the table name to use in the [SQLite] database for storing/fetching data
+## from the database.
 static func set_table_name(klass: GDScript, table_name: String) -> void:
 	assert(_tables.has(klass), "Setup must be called first, before setting the table name!")
 	_tables[klass].table_name = table_name if table_name != "" else klass.get_global_name()
 
+## Sets the column type of [enum SQLiteObject.DataType] along with any extra parameters needed.[br][br]
+## [b][color=red]NOTE:[/color][/b] Only use this function if you know what you are doing.  GDataORM
+## attempts to match the SQLite data type, with the Godot data type as best as possible.
 static func set_column_type(klass: GDScript, column: String, type: DataType, extra_params: Dictionary = {}) -> void:
 	assert(_tables.has(klass), "Setup must be called first, before setting any column types!")
 	assert(_tables[klass].columns.has(column), "Column has not been defined!  Make sure to declare the variable first!")
@@ -140,7 +213,7 @@ static func set_column_type(klass: GDScript, column: String, type: DataType, ext
 	if type == DataType.CHAR and not extra_params.has("size"):
 		assert(false, "Attempting to set Column type to CHAR without a size parameter!")
 		
-	_tables[klass].types[column] = DEFINITION[type] if type != DataType.CHAR else DEFINITION[type] % extra_params.size
+	_tables[klass].types[column] = _DEFINITION[type] if type != DataType.CHAR else _DEFINITION[type] % extra_params.size
 
 static func _create_table(db: SQLite, klass: GDScript, drop_if_exists = false) -> void:
 	assert(_tables.has(klass), "Setup must be called first, before setting any column types!")
@@ -237,9 +310,10 @@ static func _all(db: SQLite, klass: GDScript) -> Array:
 		objs.append(obj)
 	return objs
 
+## Verify that the [SQLiteObject] exists in the database.
 func exists() -> bool:
 	assert(_tables.has(self.get_script()), "Setup must be called first, before setting any column types!")
-	assert(_db, "exists(): Database connection has not been set yet.")
+	assert(_db, "exists(): This instance was not fetched from the database, or has not been added to a DbSet!")
 	var table := _tables[self.get_script()]
 	var primary_key = _get_primary_key(self.get_script())
 	assert(primary_key != "", "A Primary Key has not been defined for this class.")
@@ -248,6 +322,10 @@ func exists() -> bool:
 		[primary_key])
 	return not res.is_empty()
 
+## Saves the [SQLiteObject] to the database file.[br][br]
+## [b][color=red]NOTE:[/color][/b] Of special note, an object needs to be added to a [DbSet] first through
+## [method DbSet.append] for this function to work.  [method DbSet.append] will save the object when
+## it is first added.  This function is mostly for recording updates to the [SQLiteObject] data.
 func save() -> void:
 	assert(_tables.has(self.get_script()), "Setup must be called first, before setting any column types!")
 	assert(_db, "save(): This instance was not fetched from the database, or has not been added to a DbSet!")
@@ -289,6 +367,9 @@ func save() -> void:
 			assert(not res.is_empty(), "Failed to insert record into %s." % [table.table_name])
 			set(primary_key, res[0].seq)
 
+## Removes the [SQLiteObject] from the database.  This will fail, if the object was not fetched
+## from the database first.  You can also use [method DbSet.erase] to remove an object from the
+## database.
 func delete() -> void:
 	assert(_tables.has(self.get_script()), "Setup must be called first, before setting any column types!")
 	assert(_db, "delete(): This instance was not fetched from the database, or has not been added to a DbSet!")
