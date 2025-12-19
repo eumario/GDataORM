@@ -28,3 +28,17 @@ func find_many(conditions: Condition) -> Array:
 
 func all() -> Array:
 	return SQLiteObject._all(_db, klass)
+
+func append(obj: SQLiteObject) -> void:
+	assert(obj.get_script() == klass, "Attempting to add an SQLiteObject of %s to table of type %s!" % 
+		[obj.get_script().get_global_name(), klass.get_global_name()]
+	)
+	obj._db = _db
+	obj.save()
+
+func erase(obj: SQLiteObject) -> void:
+	assert(obj.get_script() == klass, "Attempting to remove an SQLiteObject of %s to table of type %s!" % 
+		[obj.get_script().get_global_name(), klass.get_global_name()]
+	)
+	obj._db = _db
+	obj.delete()
