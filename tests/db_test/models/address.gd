@@ -1,3 +1,4 @@
+@tool
 extends SQLiteObject
 class_name Address
 
@@ -9,6 +10,7 @@ class_name Address
 @export var zip_code: int
 
 static func _setup() -> void:
+	set_table_name(Address, "addresses")
 	set_column_flags(Address, "id", Flags.PRIMARY_KEY | Flags.AUTO_INCREMENT | Flags.NOT_NULL)
 	set_column_flags(Address, "first_name", Flags.NOT_NULL)
 	set_column_flags(Address, "last_name", Flags.NOT_NULL)
