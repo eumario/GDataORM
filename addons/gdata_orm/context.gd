@@ -3,7 +3,7 @@ class_name Context
 
 @export var file_path: String
 
-var db: SQLite
+var _db: SQLite
 
 func setup() -> void:
 	var props = get_property_list()
@@ -19,19 +19,19 @@ func open_db(db_path: String = "") -> void:
 	var props = get_property_list()
 	if db_path != "":
 		file_path = db_path
-	db = SQLite.new()
-	db.path = file_path
-	db.open_db()
+	_db = SQLite.new()
+	_db.path = file_path
+	_db.open_db()
 	for prop in props:
 		if not prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			continue
 		if prop.type != TYPE_OBJECT or prop.class_name != "DbSet":
 			continue
 		var dbset: DbSet = get(prop.name)
-		dbset.set_db(db)
+		dbset.set_db(_db)
 
 func close_db() -> void:
-	db.close_db()
+	_db.close_db()
 
 func ensure_tables() -> void:
 	var props = get_property_list()
