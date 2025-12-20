@@ -5,6 +5,7 @@ class_name SQLiteObject
 ## [SQLiteObject] is the core class for GDataORM.  It handles the grunt work
 ## of defining what table structure is and any special flags that are needed
 ## for SQLite.[br][br]
+##
 ## [b]Example:[/b]
 ## [codeblock]
 ## extends SQLiteObject
