@@ -33,7 +33,6 @@ enum _CT {
 	SELECT,
 	FROM,
 	WHERE,
-	END,
 }
 
 var _conditions: Array = []
@@ -101,7 +100,7 @@ func includes(column: String, value: Variant) -> Condition:
 ## - '_' match only 1 wildcard character before moving to the next.  EG: "h_nt" will return "hunt", "hint", or
 ## "__pple" will return "topple", "supple", "tipple"[br]
 ## [b][color=red]NOTE:[/color][/b] [SQLite]'s engine is case-insensitive, so [code]"A" LIKE "a"[/code] will return true, but
-## unicode characters that are not in the ASCII range, so [code]"Ä" LIKE "ä"[/code] will return false.
+## unicode characters that are not in the ASCII range are case-sensitive, so [code]"Ä" LIKE "ä"[/code] will return false.
 func like(column: String, value: Variant) -> Condition:
 	_conditions.append(_comparison_op(_CT.LIKE, column, value))
 	return self
@@ -111,20 +110,20 @@ func otherwise() -> Condition:
 	_conditions.append(_single_op(_CT.OR))
 	return self
 
-func select(field: String) -> Condition:
-	_conditions.append(_param_op(_CT.SELECT, field))
+## Statement, fetches [param columns] from a table during execution.  [param columns] can be a string value of "*" or "column1, column2, column3" or an
+## array of strings such as ["column1","column2","column3"].
+func select(columns: Variant) -> Condition:
+	_conditions.append(_param_op(_CT.SELECT, columns))
 	return self
 
+## Statement Modifier, used in conjunction with [method Condition.select] to define which table the data is to be fetched from.
 func from(table: String) -> Condition:
 	_conditions.append(_param_op(_CT.FROM, table))
 	return self
 
+## Statement Modifier, defines the conditions that must match in order to fetch data from the table.
 func where() -> Condition:
 	_conditions.append(_single_op(_CT.WHERE))
-	return self
-
-func end() -> Condition:
-	_conditions.append(_single_op(_CT.END))
 	return self
 
 func _to_string() -> String:
