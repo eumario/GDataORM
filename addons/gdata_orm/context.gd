@@ -12,8 +12,9 @@ func setup() -> void:
 			continue
 		if prop.type != TYPE_OBJECT or prop.class_name != "DbSet":
 			continue
+		
 		var dbset: DbSet = get(prop.name)
-		dbset.klass.setup(dbset.klass)
+		dbset._klass.setup(dbset._klass)
 
 func open_db(db_path: String = "") -> void:
 	var props = get_property_list()

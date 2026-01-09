@@ -151,7 +151,7 @@ static func setup(klass: GDScript) -> void:
 			table.types[prop.name] = DataType.GODOT_DATATYPE
 		
 		table.columns[prop.name] = def
-
+	
 	klass._setup()
 
 ## This is a virtual function that is called when setup() is called.  This allows you to
