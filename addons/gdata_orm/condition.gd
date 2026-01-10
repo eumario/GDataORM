@@ -160,7 +160,10 @@ func _to_string() -> String:
 			
 			#NOTE Comparison Operation _comparison_op()
 			_CT.EQUAL:
-				str += "%s = %s " % [cond.column, cond.value]
+				if typeof(cond.value) == TYPE_STRING:
+					str += "%s = '%s'" % [cond.column, cond.value]
+				else:
+					str += "%s = %s " % [cond.column, cond.value]
 			_CT.LESS_THAN:
 				str += "%s < %s " % [cond.column, cond.value]
 			_CT.GREATER_THAN:
@@ -187,7 +190,7 @@ func _to_string() -> String:
 				else:
 					assert(false, "IN only takes Array of values or a Condition")
 			_CT.LIKE:
-				str += "%s LIKE %s " % [cond.column, cond.value]
+				str += "%s LIKE '%s' " % [cond.column, cond.value]
 		pos += 1
 	
 	return str.strip_edges()
