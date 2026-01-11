@@ -235,7 +235,10 @@ static func _table_exists(db: SQLite, klass: GDScript) -> bool:
 static func _has_id(db: SQLite, klass: GDScript, id: Variant) -> bool:
 	var primary_key = _get_primary_key(klass)
 	var table := _tables[klass]
-	db.query_with_bindings("SELECT ? FROM ? WHERE ?=?;", [primary_key, table.table_name, primary_key, id])
+	if typeof(id) == TYPE_STRING:
+		db.query_with_bindings("SELECT ? FROM ? WHERE ?='?'", [primary_key, table.table_name, primary_key, id])
+	else:
+		db.query_with_bindings("SELECT ? FROM ? WHERE ?=?;", [primary_key, table.table_name, primary_key, id])
 	return not db.query_result.is_empty()
 
 static func _get_primary_key(klass: GDScript) -> String:
