@@ -140,8 +140,10 @@ static func setup(klass: GDScript) -> void:
 	for prop in klass.get_script_property_list():
 		if not prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			continue
-		if prop.name == "_db":
+		
+		if prop.name.begins_with("_"):
 			continue
+		
 		var def = {}
 		if _BaseTypes.has(prop.type):
 			def.data_type = _DEFINITION[_BaseTypes[prop.type]]
@@ -215,6 +217,35 @@ static func set_column_type(klass: GDScript, column: String, type: DataType, ext
 		assert(false, "Attempting to set Column type to CHAR without a size parameter!")
 		
 	_tables[klass].types[column] = _DEFINITION[type] if type != DataType.CHAR else _DEFINITION[type] % extra_params.size
+
+## Sets a variable that has been defined in the class, to be ignored, so as to not persist the data in the
+## [SQLite] database.  The variable must be defined, in order for it to be ignored.[br][br]
+## [b][color=red]NOTE:[/color][/b] By default, GDataORM ignore's any variables that start with [code]_[/code] character.
+static func ignore_column(klass: GDScript, column: String) -> void:
+	assert(_tables.has(klass), "Setup must be called first, before ignoring any column types!")
+	assert(_tables[klass].columns.has(column), "Column has not been defined!  Make sure to declare the variable first!")
+	
+	_tables[klass].types.erase(column)
+	_tables[klass].columns.erase(column)
+
+## Adds a variable that is normally ignored in the class, to not be ignoerd, so that it can persist the data
+## in the [SQLite] database.  The variable must be defined, in order for this function to succeed.
+static func add_column(klass: GDScript, column: String) -> void:
+	assert(_tables.has(klass), "Setup must be called first, before adding any column types!")
+	var props = klass.get_property_list()
+	var res = props.filter(func(x): return x.name == column)
+	assert(res.size() > 0, "You cannot add a column, that does not have the variable defined for it!")
+	
+	var prop = res[0]
+	var def = {}
+	if _BaseTypes.has(prop.type):
+		def.data_type = _DEFINITION[_BaseTypes[prop.type]]
+		_tables[klass].types[prop.name] = _BaseTypes[prop.type]
+	else:
+		def.data_type = _DEFINITION[DataType.GODOT_DATATYPE]
+		_tables[klass].types[prop.name] = DataType.GODOT_DATATYPE
+	
+	_tables[klass].columns[prop.name] = def
 
 static func _create_table(db: SQLite, klass: GDScript, drop_if_exists = false) -> void:
 	assert(_tables.has(klass), "Setup must be called first, before setting any column types!")
@@ -366,7 +397,7 @@ func save() -> void:
 		_db.insert_row(table.table_name, sql_data)
 		
 		if primary_key != "" and table.columns[primary_key].auto_increment:
-			var cond := Condition.new().equal("name","'%s'" % table.table_name)
+			var cond := Condition.new().equal("name","%s" % table.table_name)
 			var res := _db.select_rows("sqlite_sequence", cond.to_string(), ["seq"])
 			assert(not res.is_empty(), "Failed to insert record into %s." % [table.table_name])
 			set(primary_key, res[0].seq)
