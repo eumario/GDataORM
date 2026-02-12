@@ -3,11 +3,12 @@ extends EditorPlugin
 
 
 func _enable_plugin() -> void:
-	# Add autoloads here.
+	EditorInterface.set_plugin_enabled("./godot-sqlite", true)
 	pass
 
 
 func _disable_plugin() -> void:
+	EditorInterface.set_plugin_enabled("./godot-sqlite", false)
 	# Remove autoloads here.
 	pass
 

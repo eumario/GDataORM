@@ -292,7 +292,7 @@ static func _populate_object(table: TableDefs, obj: SQLiteObject, data: Dictiona
 		var prop = props.filter(func(x): return x.name == key)[0]
 		if (table.types[key] == DataType.ARRAY or
 			table.types[key] == DataType.DICTIONARY):
-			obj.set(key, JSON.parse_string(data[key]))
+			obj.get(key).assign(JSON.parse_string(data[key]))
 		elif table.types[key] == DataType.GODOT_DATATYPE:
 			if _registry.has(prop.class_name):
 				var klass := _registry[prop.class_name]
