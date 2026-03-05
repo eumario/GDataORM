@@ -1,4 +1,3 @@
-@tool
 extends Resource
 class_name SQLiteObject
 ## A Data Object representative of data to store in [SQLite] database.
@@ -137,7 +136,7 @@ static func set_column_flags(klass: GDScript, column: String, flags: int, extra_
 	if flags & Types.Flags.AUTO_INCREMENT: col_def.auto_increment = true
 	if flags & Types.Flags.PRIMARY_KEY: col_def.primary_key = true
 	if flags & Types.Flags.FOREIGN_KEY:
-		col_def.foreign_key = "%s.%s" % [extra_params.foreign_key, extra_params.table]
+		col_def.foreign_key = "%s.%s" % [extra_params.table, extra_params.foreign_key]
 	_tables[klass].columns[column] = col_def
 
 ## Sets the table name to use in the [SQLite] database for storing/fetching data
