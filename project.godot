@@ -18,6 +18,8 @@ config/name="GDataORM"
 config/description="Enter an interesting project description here!"
 config/features=PackedStringArray("4.6")
 config/icon="res://icon.png"
+GData_ORM/migration/use_number=false
+GData_ORM/migration/folder="res://migrations"
 
 [dotnet]
 
