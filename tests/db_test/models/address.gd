@@ -11,6 +11,6 @@ class_name Address
 
 static func _setup() -> void:
 	set_table_name(Address, "addresses")
-	set_column_flags(Address, "id", Flags.PRIMARY_KEY | Flags.AUTO_INCREMENT | Flags.NOT_NULL)
-	set_column_flags(Address, "first_name", Flags.NOT_NULL)
-	set_column_flags(Address, "last_name", Flags.NOT_NULL)
+	set_column_flags(Address, "id", Types.Flags.PRIMARY_KEY | Types.Flags.AUTO_INCREMENT | Types.Flags.NOT_NULL)
+	set_column_flags(Address, "first_name", Types.Flags.NOT_NULL)
+	set_column_flags(Address, "last_name", Types.Flags.NOT_NULL)
