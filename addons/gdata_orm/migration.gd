@@ -44,6 +44,10 @@ func _make_sql_statement(def: Dictionary) -> String:
 			sql += "'%s'" % var_to_bytes(def.default.get(key))
 		else:
 			sql += "'%s'" % var_to_bytes(def.default)
+	if def.has(&"foreign_key"):
+		# TODO: Handle Foreign Key
+		1+1
+	
 	return ""
 
 
