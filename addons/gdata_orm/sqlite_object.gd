@@ -1,3 +1,4 @@
+@tool
 extends Resource
 class_name SQLiteObject
 ## A Data Object representative of data to store in [SQLite] database.
@@ -23,70 +24,10 @@ class_name SQLiteObject
 ##     set_column_flags(Account, "password", Flags.NOT_NULL)
 ## [/codeblock]
 
-## The supported types of [SQLiteObject]
-enum DataType {
-	## A [bool] Value
-	BOOL, 
-	## An [int] Value
-	INT, 
-	## A [float] Value
-	REAL, 
-	## A Variable Length [String] Value
-	STRING, 
-	## A [Dictionary] Value
-	DICTIONARY, 
-	## An [Array] Value
-	ARRAY,
-	## A value of a built-in Godot DataType, or Object of a Custom Class.
-	GODOT_DATATYPE, 
-	## A Fixed-size [String] value, like [PackedStringArray]
-	CHAR, 
-	## A Binary value, like [PackedByteArray]
-	BLOB 
-}
-
-const _BaseTypes = {
-	TYPE_BOOL: DataType.BOOL,
-	TYPE_INT: DataType.INT,
-	TYPE_FLOAT: DataType.REAL,
-	TYPE_STRING: DataType.STRING,
-	TYPE_DICTIONARY: DataType.DICTIONARY,
-	TYPE_ARRAY: DataType.ARRAY,
-}
-
-const _DEFINITION = [
-	"int",
-	"int",
-	"real",
-	"text",
-	"text",
-	"text",
-	"blob",
-	"char(%d)",
-	"blob"
-]
-
-## SQLite flags used for column definitions.
-enum Flags {
-	## No Flags Associated with this Column
-	NONE = 1 << 0,
-	## Column must not be Null.
-	NOT_NULL = 1 << 1,
-	## Column must be Unique
-	UNIQUE = 1 << 2,
-	## Column has a Default value.
-	DEFAULT = 1 << 3,
-	## Column is defined as a Primary Key for this table.
-	PRIMARY_KEY = 1 << 4,
-	## Column is defined as auto-incrementing.
-	AUTO_INCREMENT = 1 << 5,
-	## Column is a Foreign Key (See [SQLite] about Foreign Keys)
-	FOREIGN_KEY = 1 << 6,
-}
-
 class TableDefs:
+	extends RefCounted
 	var columns: Dictionary[String, Dictionary] = {}
-	var types: Dictionary[String, DataType] = {}
+	var types: Dictionary[String, Types.DataType] = {}
 	var klass: GDScript
 	var table_name: String
 
@@ -118,7 +59,7 @@ static func print_data_structure() -> void:
 			columns.append_array(keys)
 			print("\t%s(DataType.%s) - SQLite: (%s)" % [
 				column,
-				DataType.find_key(table.types[column]),
+				Types.DataType.find_key(table.types[column]),
 				", ".join(columns)
 			])
 		print("")
@@ -145,12 +86,12 @@ static func setup(klass: GDScript) -> void:
 			continue
 		
 		var def = {}
-		if _BaseTypes.has(prop.type):
-			def.data_type = _DEFINITION[_BaseTypes[prop.type]]
-			table.types[prop.name] = _BaseTypes[prop.type]
+		if Types.BaseTypes.has(prop.type):
+			def.data_type = Types.DEFINITION[Types.BaseTypes[prop.type]]
+			table.types[prop.name] = Types.BaseTypes[prop.type]
 		else:
-			def.data_type = _DEFINITION[DataType.GODOT_DATATYPE]
-			table.types[prop.name] = DataType.GODOT_DATATYPE
+			def.data_type = Types.DEFINITION[Types.DataType.GODOT_DATATYPE]
+			table.types[prop.name] = Types.DataType.GODOT_DATATYPE
 		
 		table.columns[prop.name] = def
 	
@@ -179,25 +120,24 @@ static func set_column_flags(klass: GDScript, column: String, flags: int, extra_
 	var data_type = _tables[klass].types[column]
 	var col_def = _tables[klass].columns[column]
 	
-	if flags & Flags.DEFAULT and not extra_params.has("default"):
+	if flags & Types.Flags.DEFAULT and not extra_params.has("default"):
 		assert(false,"Attempting to set a default, without defining it in extra parameters!")
-	if flags & Flags.AUTO_INCREMENT and not [DataType.INT, DataType.REAL].has(data_type):
+	if flags & Types.Flags.AUTO_INCREMENT and not [Types.DataType.INT, Types.DataType.REAL].has(data_type):
 		assert(false, "Attempting to set Auto Increment flag on Non-Integer column!")
-	if flags & Flags.FOREIGN_KEY:
+	if flags & Types.Flags.FOREIGN_KEY:
 		if not extra_params.has("table"):
 			assert(false, "Attempting to set Foreign Key flag without defining the Table it associates with!")
 		if not extra_params.has("foreign_key"):
 			assert(false, "Attempting to set Foreign Key flag without defining the Foreign Key!")
 	
 	
-	if flags & Flags.NOT_NULL: col_def.not_null = true
-	if flags & Flags.UNIQUE: col_def.unique = true
-	if flags & Flags.DEFAULT: col_def.default = extra_params.default
-	if flags & Flags.AUTO_INCREMENT: col_def.auto_increment = true
-	if flags & Flags.PRIMARY_KEY: col_def.primary_key = true
-	if flags & Flags.FOREIGN_KEY:
-		col_def.foreign_key = extra_params.foreign_key
-		col_def.foreign_table = extra_params.table
+	if flags & Types.Flags.NOT_NULL: col_def.not_null = true
+	if flags & Types.Flags.UNIQUE: col_def.unique = true
+	if flags & Types.Flags.DEFAULT: col_def.default = extra_params.default
+	if flags & Types.Flags.AUTO_INCREMENT: col_def.auto_increment = true
+	if flags & Types.Flags.PRIMARY_KEY: col_def.primary_key = true
+	if flags & Types.Flags.FOREIGN_KEY:
+		col_def.foreign_key = "%s.%s" % [extra_params.foreign_key, extra_params.table]
 	_tables[klass].columns[column] = col_def
 
 ## Sets the table name to use in the [SQLite] database for storing/fetching data
@@ -209,14 +149,15 @@ static func set_table_name(klass: GDScript, table_name: String) -> void:
 ## Sets the column type of [enum SQLiteObject.DataType] along with any extra parameters needed.[br][br]
 ## [b][color=red]NOTE:[/color][/b] Only use this function if you know what you are doing.  GDataORM
 ## attempts to match the SQLite data type, with the Godot data type as best as possible.
-static func set_column_type(klass: GDScript, column: String, type: DataType, extra_params: Dictionary = {}) -> void:
+static func set_column_type(klass: GDScript, column: String, type: Types.DataType, extra_params: Dictionary = {}) -> void:
 	assert(_tables.has(klass), "Setup must be called first, before setting any column types!")
 	assert(_tables[klass].columns.has(column), "Column has not been defined!  Make sure to declare the variable first!")
 	
-	if type == DataType.CHAR and not extra_params.has("size"):
+	if type == Types.DataType.CHAR and not extra_params.has("size"):
 		assert(false, "Attempting to set Column type to CHAR without a size parameter!")
-		
-	_tables[klass].types[column] = _DEFINITION[type] if type != DataType.CHAR else _DEFINITION[type] % extra_params.size
+	
+	_tables[klass].types[column] = type
+	_tables[klass].columns[column].data_type = Types.DEFINITION[type] if type != Types.DataType.CHAR else Types.DEFINITION[type] % extra_params.size
 
 ## Sets a variable that has been defined in the class, to be ignored, so as to not persist the data in the
 ## [SQLite] database.  The variable must be defined, in order for it to be ignored.[br][br]
@@ -238,12 +179,12 @@ static func add_column(klass: GDScript, column: String) -> void:
 	
 	var prop = res[0]
 	var def = {}
-	if _BaseTypes.has(prop.type):
-		def.data_type = _DEFINITION[_BaseTypes[prop.type]]
-		_tables[klass].types[prop.name] = _BaseTypes[prop.type]
+	if Types.BaseTypes.has(prop.type):
+		def.data_type = Types.DEFINITION[Types.BaseTypes[prop.type]]
+		_tables[klass].types[prop.name] = Types.BaseTypes[prop.type]
 	else:
-		def.data_type = _DEFINITION[DataType.GODOT_DATATYPE]
-		_tables[klass].types[prop.name] = DataType.GODOT_DATATYPE
+		def.data_type = Types.DEFINITION[Types.DataType.GODOT_DATATYPE]
+		_tables[klass].types[prop.name] = Types.DataType.GODOT_DATATYPE
 	
 	_tables[klass].columns[prop.name] = def
 
@@ -290,10 +231,10 @@ static func _populate_object(table: TableDefs, obj: SQLiteObject, data: Dictiona
 		if not props.any(func(x): return x.name == key):
 			continue
 		var prop = props.filter(func(x): return x.name == key)[0]
-		if (table.types[key] == DataType.ARRAY or
-			table.types[key] == DataType.DICTIONARY):
+		if (table.types[key] == Types.DataType.ARRAY or
+			table.types[key] == Types.DataType.DICTIONARY):
 			obj.get(key).assign(JSON.parse_string(data[key]))
-		elif table.types[key] == DataType.GODOT_DATATYPE:
+		elif table.types[key] == Types.DataType.GODOT_DATATYPE:
 			if _registry.has(prop.class_name):
 				var klass := _registry[prop.class_name]
 				var cond := Condition.new()
@@ -371,11 +312,11 @@ func save() -> void:
 	var data: Variant
 	for key in table.columns.keys():
 		data = get(key)
-		if (table.types[key] == DataType.ARRAY or
-			table.types[key] == DataType.DICTIONARY
+		if (table.types[key] == Types.DataType.ARRAY or
+			table.types[key] == Types.DataType.DICTIONARY
 		):
 			sql_data[key] = JSON.stringify(data)
-		elif table.types[key] == DataType.GODOT_DATATYPE:
+		elif table.types[key] == Types.DataType.GODOT_DATATYPE:
 			if typeof(data) == TYPE_OBJECT:
 				if _registry.has(data.get_script().get_global_name()):
 					var pk := _get_primary_key(data.get_script())
