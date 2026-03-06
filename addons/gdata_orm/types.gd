@@ -61,3 +61,7 @@ enum Flags {
 	## Column is a Foreign Key (See [SQLite] about Foreign Keys)
 	FOREIGN_KEY = 1 << 6,
 }
+
+const USE_NUMBER_SETTING: String = "application/GData_ORM/migration/use_number"
+const FOLDER_SETTING: String = "application/GData_ORM/migration/folder"
+const DEBUG_MIGRATION: String = "application/GData_ORM/migration/debug_migrations"
