@@ -5,8 +5,6 @@ var migrations_submenu: PopupMenu
 var mi_create_initial: int = 1000
 var mi_create_migration: int = 1001
 
-const USE_NUMBER_SETTING: String = "application/GData_ORM/migration/use_number"
-const FOLDER_SETTING: String = "application/GData_ORM/migration/folder"
 const INITIAL_MIGRATION_TEMPLATE: String = r"extends Migration
 
 func _up() -> void:
@@ -49,19 +47,26 @@ func _handle_migrations(id: int) -> void:
 			_prompt_migration_name()
 
 func _init_settings() -> void:
-	if not ProjectSettings.has_setting(USE_NUMBER_SETTING):
-		ProjectSettings.set_setting(USE_NUMBER_SETTING, true)
+	if not ProjectSettings.has_setting(Types.USE_NUMBER_SETTING):
+		ProjectSettings.set_setting(Types.USE_NUMBER_SETTING, true)
 		ProjectSettings.add_property_info({
-			"name": USE_NUMBER_SETTING,
+			"name": Types.USE_NUMBER_SETTING,
 			"type": TYPE_BOOL,
 		})
 	
-	if not ProjectSettings.has_setting(FOLDER_SETTING):
-		ProjectSettings.set_setting(FOLDER_SETTING, "res://migrations")
+	if not ProjectSettings.has_setting(Types.FOLDER_SETTING):
+		ProjectSettings.set_setting(Types.FOLDER_SETTING, "res://migrations")
 		ProjectSettings.add_property_info({
-			"name": FOLDER_SETTING,
+			"name": Types.FOLDER_SETTING,
 			"type": TYPE_STRING,
 			"hint": PROPERTY_HINT_DIR,
+		})
+	
+	if not ProjectSettings.has_setting(Types.DEBUG_MIGRATION):
+		ProjectSettings.set_setting(Types.DEBUG_MIGRATION, true)
+		ProjectSettings.add_property_info({
+			"name": Types.DEBUG_MIGRATION,
+			"type": TYPE_BOOL,
 		})
 
 func _create_initial_migration() -> bool:
@@ -107,11 +112,11 @@ func _create_initial_migration() -> bool:
 		return false
 	
 	var fname: String
-	if ProjectSettings.get_setting(USE_NUMBER_SETTING):
+	if ProjectSettings.get_setting(Types.USE_NUMBER_SETTING):
 		fname = "001_initial.gd"
 	else:
 		var dt = Time.get_datetime_dict_from_system()
-		fname = "%04d%02d%02d_%02d_%02d_initial.gd" % [dt.year, dt.month, dt.day, dt.hour, dt.minute]
+		fname = "%04d%02d%02d_%02d%02d%02d_initial.gd" % [dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second]
 	
 	_write_template(fname, INITIAL_MIGRATION_TEMPLATE, up, down)
 	return true
@@ -156,23 +161,23 @@ func _prompt_migration_name() -> void:
 
 func _create_migration(name: String) -> void:
 	var fname: String
-	if ProjectSettings.get_setting(USE_NUMBER_SETTING):
-		var files := Array(DirAccess.get_files_at(ProjectSettings.get_setting(FOLDER_SETTING)))
+	if ProjectSettings.get_setting(Types.USE_NUMBER_SETTING):
+		var files := Array(DirAccess.get_files_at(ProjectSettings.get_setting(Types.FOLDER_SETTING)))
 		files = files.filter(func(x: String): return x.ends_with(".gd"))
 		var i := files.size() + 1
 		fname = "%03d_%s.gd" % [i, name.to_snake_case()]
 	else:
 		var dt := Time.get_datetime_dict_from_system()
-		fname = "%04d%02d%02d_%02d_%02d_%s.gd" % [dt.year, dt.month, dt.day, dt.hour, dt.minute, name.to_snake_case()]
+		fname = "%04d%02d%02d_%02d%02d%02d_%s.gd" % [dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, name.to_snake_case()]
 	
 	if _write_template(fname, MIGRATION_TEMPLATE):
 		EditorInterface.get_resource_filesystem().scan()
 
 func _write_template(fname: String, tmpl: String, up: String = "", down: String = "") -> bool:
-	var path: String = ProjectSettings.get_setting(FOLDER_SETTING).path_join(fname)
-	if not DirAccess.dir_exists_absolute(ProjectSettings.get_setting(FOLDER_SETTING)):
-		if DirAccess.make_dir_recursive_absolute(ProjectSettings.get_setting(FOLDER_SETTING)) != OK:
-			push_error("Unable to create folder: %s" % [ProjectSettings.get_setting(FOLDER_SETTING)])
+	var path: String = ProjectSettings.get_setting(Types.FOLDER_SETTING).path_join(fname)
+	if not DirAccess.dir_exists_absolute(ProjectSettings.get_setting(Types.FOLDER_SETTING)):
+		if DirAccess.make_dir_recursive_absolute(ProjectSettings.get_setting(Types.FOLDER_SETTING)) != OK:
+			push_error("Unable to create folder: %s" % [ProjectSettings.get_setting(Types.FOLDER_SETTING)])
 			return false
 	
 	var fh := FileAccess.open(path, FileAccess.WRITE)
