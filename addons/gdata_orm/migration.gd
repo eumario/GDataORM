@@ -1,4 +1,3 @@
-@tool
 @abstract
 extends RefCounted
 class_name Migration
@@ -11,6 +10,9 @@ var _last_table: TableDef = null
 func _init(db: SQLite) -> void:
 	_db = db
 
+func _log(msg: String) -> void:
+	if ProjectSettings.get_setting(Types.DEBUG_MIGRATION):
+		print("[Migration]: %s" % msg)
 
 ## Function to define alterations when upgrading to this migration.
 @abstract func _up() -> void
@@ -22,33 +24,9 @@ func _init(db: SQLite) -> void:
 
 func _apply_last_table() -> void:
 	if _last_table == null: return
+	_log("Creating table %s" % [_last_table.name])
 	_db.create_table(_last_table.name, _last_table.columns)
 	_last_table = null
-
-
-func _make_sql_statement(def: Dictionary) -> String:
-	var sql := ""
-	sql += def.data_type + " "
-	if def.has(&"primary_key"): sql += "PRIMARY KEY "
-	if def.has(&"unique"): sql += "UNIQUE "
-	if def.has(&"not_null"): sql += "NOT NULL "
-	if def.has(&"default"):
-		sql += "DEFAULT "
-		if typeof(def.default) == TYPE_STRING:
-			sql += "'%s' " % def.default
-		elif typeof(def.default) == TYPE_ARRAY or typeof(def.default) == TYPE_DICTIONARY:
-			sql += "'%s'" % JSON.stringify(def.default)
-		elif typeof(def.default) == TYPE_OBJECT and def.default is SQLiteObject:
-			var script: GDScript = def.default.get_script()
-			var key := SQLiteObject._get_primary_key(script)
-			sql += "'%s'" % var_to_bytes(def.default.get(key))
-		else:
-			sql += "'%s'" % var_to_bytes(def.default)
-	if def.has(&"foreign_key"):
-		# TODO: Handle Foreign Key
-		1+1
-	
-	return ""
 
 
 ## This is called by the [Migrator] class, it handles migration of all available migrations.
@@ -92,7 +70,7 @@ class TableDef:
 	var columns: Dictionary[String, Dictionary] = {}
 	var name: String
 	
-	static func _create_column_def(type: Types.DataType, flags: Types.Flags, extra_params: Dictionary) -> Dictionary:
+	static func _create_column_def(type: Types.DataType, flags: int, extra_params: Dictionary) -> Dictionary:
 		var column := {}
 		if Types.BaseTypes.has(type):
 			column.data_type = Types.DEFINITION[Types.BaseTypes[type]]
@@ -116,14 +94,14 @@ class TableDef:
 		if flags & Types.Flags.AUTO_INCREMENT: column.auto_increment = true
 		if flags & Types.Flags.PRIMARY_KEY: column.primary_key = true
 		if flags & Types.Flags.FOREIGN_KEY:
-			column.foreign_key = "%s.%s" % [extra_params.foreign_key,extra_params.table]
+			column.foreign_key = "%s.%s" % [extra_params.table,extra_params.foreign_key]
 		
 		return column
 	
 	func _init(_name: String) -> void:
 		name = _name
 	
-	func add_column(name: String, type: Types.DataType, flags: Types.Flags = Types.Flags.NONE, extra_params: Dictionary = {}):
+	func add_column(name: String, type: Types.DataType, flags: int = Types.Flags.NONE, extra_params: Dictionary = {}):
 		assert(not columns.has(name), "Column %s has already been defined!" % name)
 		var def = _create_column_def(type, flags, extra_params)
 		columns[name] = def
@@ -141,18 +119,21 @@ func create_table(name: String) -> TableDef:
 ## Renames a table from the old name to the new name.
 func rename_table(old_name: String, name: String) -> void:
 	_apply_last_table()
+	_log("Renaming table %s to %s" % [old_name, name])
 	_db.query("ALTER TABLE '%s' RENAME TO '%s';" % [old_name, name])
 
 
 ## Drops a table from the database.
 func drop_table(name) -> void:
 	_apply_last_table()
+	_log("Dropping table %s" % [name])
 	_db.drop_table(name)
 
 
 ## Add's a column to an already existing table in the database.
-func add_column(table_name: String, name: String, type: Types.DataType, flags: Types.Flags = Types.Flags.NONE, extra_params: Dictionary = {}) -> void:
+func add_column(table_name: String, name: String, type: Types.DataType, flags: int = Types.Flags.NONE, extra_params: Dictionary = {}) -> void:
 	_apply_last_table()
+	_log("Adding Column %s to table %s" % [name, table_name])
 	var def = TableDef._create_column_def(type, flags, extra_params)
 	var sql_stmt := "ALTER TABLE '%s' ADD COLUMN '%s'" % [table_name, name]
 	sql_stmt += " " + (Types.DEFINITION[type].to_upper() if Types.DEFINITION[type] != "int" else "INTEGER")
@@ -186,20 +167,26 @@ func add_column(table_name: String, name: String, type: Types.DataType, flags: T
 ## Drop's a column from an already existing table in the database.
 func drop_column(table_name: String, name: String) -> void:
 	_apply_last_table()
+	_log("Dropping column %s from table %s" % [name, table_name])
 	_db.query("ALTER TABLE '%s' DROP COLUMN '%s'" % [table_name, name])
 
 
 ## Insert's a singular record into the table in the database.
 func insert(table_name: String, data: Dictionary) -> bool:
 	_apply_last_table()
+	_log("Inserting data into %s:\n\t%s" % [table_name, JSON.stringify(data)])
 	return _db.insert_row(table_name, data)
 
 ## Insert a number of records into the table in the database.
 func insert_rows(table_name: String, data: Array) -> bool:
 	_apply_last_table()
+	_log("Inserting %d rows into %s" % [data.size(), table_name])
 	return _db.insert_rows(table_name, data)
 
 ## Deletes data from the table in the database.
 func delete_rows(table_name: String, cond: Condition) -> bool:
 	_apply_last_table()
-	return _db.delete_rows(table_name, cond.to_string())
+	_log("Deleting data from %s Where %s" % [table_name, cond])
+	var res := _db.delete_rows(table_name, cond.to_string())
+	_log("(%d) rows affected." % _db.get_reference_count())
+	return res
