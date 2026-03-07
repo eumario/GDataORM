@@ -1,5 +1,6 @@
 extends Object
 class_name Types
+## Constants and Enumerations used throughout the GDataORM framework.
 
 ## The supported types of [SQLiteObject]
 enum DataType {
@@ -52,13 +53,15 @@ enum Flags {
 	NOT_NULL = 1 << 1,
 	## Column must be Unique
 	UNIQUE = 1 << 2,
-	## Column has a Default value.
+	## Column has a Default value.  (Extra Params dictionary must provide a key [code]&"default"[/code] that
+	## provides the default value)
 	DEFAULT = 1 << 3,
 	## Column is defined as a Primary Key for this table.
 	PRIMARY_KEY = 1 << 4,
 	## Column is defined as auto-incrementing.
 	AUTO_INCREMENT = 1 << 5,
-	## Column is a Foreign Key (See [SQLite] about Foreign Keys)
+	## Column is a Foreign Key (See [SQLite] about Foreign Keys, Extra Params dictionary must
+	## provide the keys [code]&"foreign_key"[/code] and [code]&"table"[/code] with the table and column to find the foreign key in.)
 	FOREIGN_KEY = 1 << 6,
 }
 

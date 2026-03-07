@@ -35,39 +35,26 @@ func apply(direction: String) -> void:
 	_apply_last_table()
 
 
+## A DSL class to allow chaining to define a table to be stored in the database.[br][br]
+##
+## [b]An Example:[/b][br]
+## [codeblock]
+## extends Migration
+##
+## def _up() -> void:
+##   var table = create_table("my_table")
+##   table.add_column("id", Types.DataType.INT, Types.Flags.PRIMARY_KEY|Types.Flags.AUTOINCREMENT|Types.Flags.NOT_NULL)
+##   table.add_column("name", Types.DataType.STRING, Types.Flags.NOT_NULL)
+##   table.add_column("score", Types.DataType.INT)
+## 
+## def _down() -> void:
+##   drop_table("my_table")
+## [/codeblock]
 class TableDef:
 	extends RefCounted
-	## A DSL class to allow chaining to define a table to be stored in the database.[br][br]
-	##
-	## [b]An Example:[/b][br]
-	## [codeblock]
-	## extends Migration
-	##
-	## def _up() -> void:
-	##   (create_table("my_table")
-	##     .add_column("id", Types.DataType.INT, Types.Flags.PRIMARY_KEY|Types.Flags.AUTOINCREMENT|Types.Flags.NOT_NULL)
-	##     .add_column("name", Types.DataType.STRING, Types.Flags.NOT_NULL|Types.Flags.DEFAULT, {"default": "None"})
-	##     .add_column("email", Types.DataType.STRING)
-	##     .add_column("address", Types.DataType.STRING))
-	## 
-	## def _down() -> void:
-	##   drop_table("my_table")
-	## [/codeblock]
-	##
-	## [b]Another Example[/b][br]
-	## [codeblock]
-	## extends Migration
-	##
-	## def _up() -> void:
-	##   var table = create_table("my_table")
-	##   table.add_column("id", Types.DataType.INT, Types.Flags.PRIMARY_KEY|Types.Flags.AUTOINCREMENT|Types.Flags.NOT_NULL)
-	##   table.add_column("name", Types.DataType.STRING, Types.Flags.NOT_NULL)
-	##   table.add_column("score", Types.DataType.INT)
-	## 
-	## def _down() -> void:
-	##   drop_table("my_table")
-	## [/codeblock]
+	## A dictionary of columns defining the structure of a column to be created in SQLite database.
 	var columns: Dictionary[String, Dictionary] = {}
+	## Name of the Table to be created.
 	var name: String
 	
 	static func _create_column_def(type: Types.DataType, flags: int, extra_params: Dictionary) -> Dictionary:
@@ -101,6 +88,11 @@ class TableDef:
 	func _init(_name: String) -> void:
 		name = _name
 	
+	## Add a column to be created in this table.  Allows defining the structure of the column, and flags in which to apply to it.[br]
+	## - [param name]: The name of the column in the table.[br]
+	## - [param type]: The data type for this column.[br]
+	## - [param flags]: The Bit-Wise OR'ed flags to be apply to this column.  EG: [enum Types.Flags.PRIMARY_KEY]|[enum Types.Flags.AUTO_INCREMENT][br]
+	## - [param extra_params]: The extra parameters to be used for this column.  ([enum Types.Flags.DEFAULT] = {"default": value}, [enum Types.Flags.FOREIGN_KEY] = {"foreign_key": "column_name", "table": "table_name"})[br]
 	func add_column(name: String, type: Types.DataType, flags: int = Types.Flags.NONE, extra_params: Dictionary = {}):
 		assert(not columns.has(name), "Column %s has already been defined!" % name)
 		var def = _create_column_def(type, flags, extra_params)
