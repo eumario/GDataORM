@@ -62,6 +62,9 @@ func close_db() -> void:
 
 
 ## Ensures that all tables defined as [DbSet] in this context, are properly created in the database.
+## You can use this method to just create the database structure without plans to modify the database
+## in any way.  If you plan to make updates to the structure of the databse, see [Migration] and
+## [method Context.run_migrations] to create Migrations, and apply them.
 func ensure_tables() -> void:
 	var props = get_property_list()
 	for prop in props:
@@ -72,6 +75,12 @@ func ensure_tables() -> void:
 		var dbset: DbSet = get(prop.name)
 		if not dbset.table_exists():
 			dbset.create_table(false)
+
+## Run Migrations against database.  Use this method instead of [method Context.ensure_tables] to allow for
+## upgrades / downgrades to be applied to the database.
+func run_migrations() -> void:
+	var migrator := Migrator.new("", _db)
+	migrator.apply_migrations()
 
 ## Forces the creation of all tables defined as [DbSet] in this context, are properly created, dropping
 ## the table if it already exists.
