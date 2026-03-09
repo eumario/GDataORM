@@ -29,7 +29,7 @@ func _enter_tree() -> void:
 	_init_settings()
 	migrations_submenu = PopupMenu.new()
 	migrations_submenu.add_item("Create Initial Migration", mi_create_initial)
-	migrations_submenu.add_item("Create new Migration", mi_create_migration)
+	migrations_submenu.add_item("Add new Migration", mi_create_migration)
 	add_tool_submenu_item("Migrations", migrations_submenu)
 	migrations_submenu.id_pressed.connect(_handle_migrations)
 
@@ -92,6 +92,7 @@ func _create_initial_migration() -> bool:
 			var extra: Dictionary = {}
 			var def := SQLiteObject._tables[table].columns[column]
 			if def.has(&"primary_key"): flags.append("Types.Flags.PRIMARY_KEY")
+			if def.has(&"auto_increment"): flags.append("Types.Flags.AUTO_INCREMENT")
 			if def.has(&"unique"): flags.append("Types.Flags.UNIQUE")
 			if def.has(&"not_null"): flags.append("Types.Flags.NOT_NULL")
 			if def.has(&"default"): 
