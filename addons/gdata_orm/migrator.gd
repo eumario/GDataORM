@@ -66,6 +66,10 @@ func apply_migrations(to_level: int = -1, to_date: String = "") -> void:
 		assert(to_level != -1, "Migration error, date time stamp doesn't exist!")
 		to_level += 1
 	
+	if to_level == last.numeric_version:
+		_log("Migrations are current, no migrations ran.")
+		return
+	
 	if to_level > last.numeric_version and to_level <= migration_scripts.size():
 		_log("Running Migration up to version: %d" % to_level)
 		# We are Upgrading
