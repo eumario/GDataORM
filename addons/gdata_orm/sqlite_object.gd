@@ -232,7 +232,12 @@ static func _populate_object(table: TableDefs, obj: SQLiteObject, data: Dictiona
 		var prop = props.filter(func(x): return x.name == key)[0]
 		if (table.types[key] == Types.DataType.ARRAY or
 			table.types[key] == Types.DataType.DICTIONARY):
-			obj.get(key).assign(JSON.parse_string(data[key]))
+			if data[key] == null and table.types[key] == Types.DataType.ARRAY:
+				obj.get(key).assign([])
+			elif data[key] == null and table.types[key] == Types.DataType.DICTIONARY:
+				obj.get(key).assign({})
+			else:
+				obj.get(key).assign(JSON.parse_string(data[key]))
 		elif table.types[key] == Types.DataType.GODOT_DATATYPE:
 			if _registry.has(prop.class_name):
 				var klass := _registry[prop.class_name]
@@ -331,12 +336,12 @@ func save() -> void:
 	if primary_key != "" and exists():
 		_db.update_rows(table.table_name,Condition.new().equal(primary_key, get(primary_key)).to_string(), sql_data)
 	else:
-		if primary_key != "" and table.columns[primary_key].auto_increment:
+		if primary_key != "" and table.columns[primary_key].has(&"auto_increment"):
 			sql_data.erase(primary_key)
 		
 		_db.insert_row(table.table_name, sql_data)
 		
-		if primary_key != "" and table.columns[primary_key].auto_increment:
+		if primary_key != "" and table.columns[primary_key].has(&"auto_increment"):
 			var cond := Condition.new().equal("name","%s" % table.table_name)
 			var res := _db.select_rows("sqlite_sequence", cond.to_string(), ["seq"])
 			assert(not res.is_empty(), "Failed to insert record into %s." % [table.table_name])
