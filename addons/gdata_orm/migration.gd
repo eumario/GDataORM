@@ -59,10 +59,7 @@ class TableDef:
 	
 	static func _create_column_def(type: Types.DataType, flags: int, extra_params: Dictionary) -> Dictionary:
 		var column := {}
-		if Types.BaseTypes.has(type):
-			column.data_type = Types.DEFINITION[Types.BaseTypes[type]]
-		else:
-			column.data_type = Types.DEFINITION[Types.DataType.GODOT_DATATYPE]
+		column.data_type = Types.DEFINITION[type]
 
 		if flags & Types.Flags.DEFAULT and not extra_params.has("default"):
 			assert(false,"Attempting to set a default, without defining it in extra parameters!")
