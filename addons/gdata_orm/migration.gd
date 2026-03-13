@@ -74,7 +74,7 @@ class TableDef:
 		
 		if flags & Types.Flags.NOT_NULL: column.not_null = true
 		if flags & Types.Flags.UNIQUE: column.unique = true
-		if flags & Types.Flags.DEFAULT: column.default = extra_params.default
+		if flags & Types.Flags.DEFAULT: column.default = ("'%s'" % extra_params.default) if typeof(extra_params.default) == TYPE_STRING else extra_params.default
 		if flags & Types.Flags.AUTO_INCREMENT: column.auto_increment = true
 		if flags & Types.Flags.PRIMARY_KEY: column.primary_key = true
 		if flags & Types.Flags.FOREIGN_KEY:
@@ -143,6 +143,8 @@ func add_column(table_name: String, name: String, type: Types.DataType, flags: i
 			sql_stmt += "'%s'" % [var_to_bytes(def.default.get(pk))]
 		elif type == Types.DataType.GODOT_DATATYPE:
 			sql_stmt += "'%s'" % [var_to_bytes(def.default)]
+		elif type == Types.DataType.STRING:
+			sql_stmt += "'%s'" % [def.default]
 		else:
 			sql_stmt += "%s" % [def.default]
 	if def.has(&"foreign_key"):
