@@ -25,7 +25,7 @@ func _log(msg: String) -> void:
 func _apply_last_table() -> void:
 	if _last_table == null: return
 	_log("Creating table %s" % [_last_table.name])
-	_db.create_table(_last_table.name, _last_table.columns)
+	assert(_db.create_table(_last_table.name, _last_table.columns), "Failed to create table %s" % [_last_table.name])
 	_last_table = null
 
 
