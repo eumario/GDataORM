@@ -33,6 +33,9 @@ enum _CT {
 	SELECT,
 	FROM,
 	WHERE,
+	ORDER_BY,
+	DESC,
+	LIMIT,
 }
 
 var _conditions: Array = []
@@ -126,6 +129,21 @@ func where() -> Condition:
 	_conditions.append(_single_op(_CT.WHERE))
 	return self
 
+## Statement Modifier, defines the ordering by column name.
+func order_by(column: Variant) -> Condition:
+	_conditions.append(_param_op(_CT.ORDER_BY, column))
+	return self
+
+## Statement Modifier, changes ordering from ASCENDING to DESCENDING.
+func desc() -> Condition:
+	_conditions.append(_single_op(_CT.DESC))
+	return self
+
+## Statement Modifier, limits the number of rows returned to [param num].
+func limit(num: int) -> Condition:
+	_conditions.append(_param_op(_CT.LIMIT, num))
+	return self
+
 func _to_string() -> String:
 	var str = ""
 	var pos := 0
@@ -144,6 +162,8 @@ func _to_string() -> String:
 				str += "OR "
 			_CT.WHERE:
 				str += "WHERE "
+			_CT.DESC:
+				str += "DESC "
 			
 			#NOTE Param Operation _param_op()
 			_CT.SELECT:
@@ -191,6 +211,10 @@ func _to_string() -> String:
 					assert(false, "IN only takes Array of values or a Condition")
 			_CT.LIKE:
 				str += "%s LIKE '%s' " % [cond.column, cond.value]
+			_CT.ORDER_BY:
+				str += "ORDER BY %s " % [cond.param]  
+			_CT.LIMIT:
+				str += "LIMIT %d " % [cond.param]
 		pos += 1
 	
 	return str.strip_edges()
