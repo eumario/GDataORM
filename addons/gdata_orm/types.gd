@@ -38,8 +38,8 @@ const DEFINITION: Array[String] = [
 	"int",
 	"real",
 	"text",
-	"text",
-	"text",
+	"blob",
+	"blob",
 	"blob",
 	"char(%d)",
 	"blob"
