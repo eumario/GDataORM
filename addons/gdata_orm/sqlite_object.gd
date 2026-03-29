@@ -237,7 +237,7 @@ static func _populate_object(table: TableDefs, obj: SQLiteObject, data: Dictiona
 			elif data[key] == null and table.types[key] == Types.DataType.DICTIONARY:
 				obj.get(key).assign({})
 			else:
-				obj.get(key).assign(JSON.parse_string(data[key]))
+				obj.get(key).assign(bytes_to_var_with_objects(data[key]))
 		elif table.types[key] == Types.DataType.GODOT_DATATYPE:
 			if _registry.has(prop.class_name):
 				var klass := _registry[prop.class_name]
@@ -319,7 +319,7 @@ func save() -> void:
 		if (table.types[key] == Types.DataType.ARRAY or
 			table.types[key] == Types.DataType.DICTIONARY
 		):
-			sql_data[key] = JSON.stringify(data)
+			sql_data[key] = var_to_bytes_with_objects(data)
 		elif table.types[key] == Types.DataType.GODOT_DATATYPE:
 			if typeof(data) == TYPE_OBJECT:
 				if _registry.has(data.get_script().get_global_name()):
